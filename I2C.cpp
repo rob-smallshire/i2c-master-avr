@@ -279,6 +279,22 @@ uint8_t I2C::write(uint8_t address, uint8_t registerAddress, uint8_t *data, uint
   return 0;
 }
 
+uint8_t I2C::writeBytes(uint8_t address, uint8_t registerAddress, uint8_t numBytes, ...) {
+	CHECKED(start(), 0, 0);
+	CHECKED(sendAddress(SLA_W(address)), 1, 2);
+	CHECKED(sendByte(registerAddress), 1, 3);
+
+	va_list args;
+	va_start(args, numBytes);
+	for (uint8_t i = 0; i < numBytes; ++i) {
+		uint8_t b = (uint8_t) va_arg(args, int);
+		CHECKED(sendByte(b), 1, 3);
+	}
+
+	CHECKED(stop(), 1, 7);
+	return 0;
+}
+
 uint8_t I2C::read(int address, int numberBytes)
 {
   return(read((uint8_t) address, (uint8_t) numberBytes));
