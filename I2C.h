@@ -116,6 +116,7 @@ class I2C
 
 
   private:
+    uint8_t readBytes(uint8_t numberBytes, uint8_t *dataBuffer);
     uint8_t start();
     uint8_t sendAddress(uint8_t);
     uint8_t sendByte(uint8_t);

@@ -309,26 +309,7 @@ uint8_t I2C::read(uint8_t address, uint8_t numberBytes)
 
   CHECKED(start(), 0, 0);
   CHECKED(sendAddress(SLA_R(address)), 1, 5);
-
-  for(uint8_t i = 0; i < numberBytes; i++)
-  {
-    if (i == nack)
-    {
-      returnStatus = receiveByte(0);
-      if (returnStatus == 1) return 6;
-      if (returnStatus != MR_DATA_NACK) return returnStatus;
-    }
-    else
-    {
-      returnStatus = receiveByte(1);
-      if (returnStatus == 1) return 6;
-      if (returnStatus != MR_DATA_ACK) return returnStatus;
-    }
-    data[i] = TWDR;
-    bytesAvailable = i+1;
-    totalBytes = i+1;
-  }
-
+  CHECKED(readBytes(numberBytes, data), 0, 0);
   CHECKED(stop(), 1, 7);
   return 0;
 }
@@ -350,26 +331,7 @@ uint8_t I2C::read(uint8_t address, uint8_t registerAddress, uint8_t numberBytes)
   CHECKED(sendByte(registerAddress), 1, 3);
   CHECKED(start(), 1, 4);
   CHECKED(sendAddress(SLA_R(address)), 1, 5);
-
-  for(uint8_t i = 0; i < numberBytes; i++)
-  {
-    if (i == nack)
-    {
-      returnStatus = receiveByte(0);
-      if (returnStatus == 1) return 6;
-      if (returnStatus != MR_DATA_NACK) return returnStatus;
-    }
-    else
-    {
-      returnStatus = receiveByte(1);
-      if (returnStatus == 1) return 6;
-      if (returnStatus != MR_DATA_ACK) return returnStatus;
-    }
-    data[i] = TWDR;
-    bytesAvailable = i+1;
-    totalBytes = i+1;
-  }
-
+  CHECKED(readBytes(numberBytes, data), 0, 0);
   CHECKED(stop(), 1, 7);
   return 0;
 }
@@ -383,26 +345,7 @@ uint8_t I2C::read(uint8_t address, uint8_t numberBytes, uint8_t *dataBuffer)
 
   CHECKED(start(), 0, 0);
   CHECKED(sendAddress(SLA_R(address)), 1, 5);
-
-  for(uint8_t i = 0; i < numberBytes; i++)
-  {
-    if(i == nack)
-    {
-      returnStatus = receiveByte(0);
-      if (returnStatus == 1) return 6;
-      if (returnStatus != MR_DATA_NACK) return returnStatus;
-    }
-    else
-    {
-      returnStatus = receiveByte(1);
-      if (returnStatus == 1) return 6;
-      if (returnStatus != MR_DATA_ACK) return returnStatus;
-    }
-    dataBuffer[i] = TWDR;
-    bytesAvailable = i+1;
-    totalBytes = i+1;
-  }
-
+  CHECKED(readBytes(numberBytes, dataBuffer), 0, 0);
   CHECKED(stop(), 1, 7);
   return 0;
 }
@@ -419,26 +362,7 @@ uint8_t I2C::read(uint8_t address, uint8_t registerAddress, uint8_t numberBytes,
   CHECKED(sendByte(registerAddress), 1, 3);
   CHECKED(start(), 1, 4);
   CHECKED(sendAddress(SLA_R(address)), 1, 5);
-
-  for(uint8_t i = 0; i < numberBytes; i++)
-  {
-    if( i == nack )
-    {
-      returnStatus = receiveByte(0);
-      if (returnStatus == 1) return 6;
-      if (returnStatus != MR_DATA_NACK) return returnStatus;
-    }
-    else
-    {
-      returnStatus = receiveByte(1);
-      if (returnStatus == 1) return 6;
-      if (returnStatus != MR_DATA_ACK) return returnStatus;
-    }
-    dataBuffer[i] = TWDR;
-    bytesAvailable = i+1;
-    totalBytes = i+1;
-  }
-
+  CHECKED(readBytes(numberBytes, dataBuffer), 0, 0);
   CHECKED(stop(), 1, 7);
   return 0;
 }
@@ -446,6 +370,28 @@ uint8_t I2C::read(uint8_t address, uint8_t registerAddress, uint8_t numberBytes,
 
 /////////////// Private Methods ////////////////////////////////////////
 
+uint8_t I2C::readBytes(uint8_t numberBytes, uint8_t *dataBuffer)
+{
+	for(uint8_t i = 0; i < numberBytes; i++)
+	{
+	    if(i == nack)
+	    {
+	      returnStatus = receiveByte(0);
+	      if (returnStatus == 1) return 6;
+	      if (returnStatus != MR_DATA_NACK) return returnStatus;
+	    }
+	    else
+	    {
+	      returnStatus = receiveByte(1);
+	      if (returnStatus == 1) return 6;
+	      if (returnStatus != MR_DATA_ACK) return returnStatus;
+	    }
+	    dataBuffer[i] = TWDR;
+	    bytesAvailable = i+1;
+	    totalBytes = i+1;
+	}
+	return 0;
+}
 
 uint8_t I2C::start()
 {
