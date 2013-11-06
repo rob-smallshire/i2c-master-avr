@@ -68,7 +68,6 @@
         	if (status == original_status) return translated_status; \
         	return status;                                           \
         }                                                            \
-        return status;                                               \
     }
 
 
