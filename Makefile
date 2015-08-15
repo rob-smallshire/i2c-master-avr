@@ -38,9 +38,9 @@ CXXFLAGS= $(OPTIMIZATION) $(WARNINGS) $(CODEGEN)
 
 LDFLAGS = -Wl,-Map,$(TARGET).map -Wl,--gc-sections -Wl,-u,vfprintf -lprintf_flt -lm
 
-CSOURCES=echo.c uart.c debounce.c joystick.c
+CSOURCES=elapsed.c
 
-CXXSOURCES=
+CXXSOURCES=i2c.cpp
 
 OBJECTS=$(CSOURCES:.c=.o)
 OBJECTS+=$(CXXSOURCES:.cpp=.o)
