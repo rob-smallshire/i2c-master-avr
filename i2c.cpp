@@ -60,7 +60,7 @@
 #endif
 
 #include <inttypes.h>
-#include "I2C.h"
+#include "i2c.h"
 
 #define CHECKED(expr, original_status, translated_status) {          \
     	uint8_t status = expr;                                       \
