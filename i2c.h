@@ -54,6 +54,7 @@
 */
 
 #include <inttypes.h>
+#include <stdarg.h>
 
 #ifndef I2C_h
 #define I2C_h

@@ -54,7 +54,13 @@
 */
 
 #include <inttypes.h>
+#include <string.h>
+
+#include <avr/io.h>
+
+#include "elapsed.h"
 #include "i2c.h"
+
 
 #define CHECKED(expr, original_status, translated_status) {          \
     	uint8_t status = expr;                                       \
