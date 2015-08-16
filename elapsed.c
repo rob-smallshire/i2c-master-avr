@@ -56,19 +56,21 @@ void flash_led ()
     unsigned long milliseconds_current = millis();
 
     if (milliseconds_current - milliseconds_since > 1000) {
-        // LED connected to PC0/Analog 0
-        PORTC ^= (1 << PC0);
+        // LED connected to PB7
+        PORTB ^= (1 << PB7);
         milliseconds_since = milliseconds_current;
     }
 }
 
 int main(void)
 {
+    init_millis();
+
     // Now enable global interrupts
     sei();
 
     // PC0/Analog 0 to Output
-    DDRC |= (1 << PC0);
+    DDRB |= (1 << PB7);
  
     while (1)
     {
