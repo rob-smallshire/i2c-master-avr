@@ -71,40 +71,209 @@
     }
 
 
-uint8_t I2C::bytesAvailable = 0;
-uint8_t I2C::bufferIndex = 0;
-uint8_t I2C::totalBytes = 0;
-uint16_t I2C::timeOutDelay = 0;
+namespace {
 
-////////////// Public Methods ////////////////////////////////////////
+// State variables
+uint8_t nack = 0;
+uint8_t data[MAX_BUFFER_SIZE];
+uint8_t bytesAvailable = 0;
+uint8_t bufferIndex = 0;
+uint8_t totalBytes = 0;
+uint16_t timeOutDelay = 0;
 
-I2C::I2C()
+void lockUp()
 {
-
+  TWCR = 0; // releases SDA and SCL lines to high impedance
+  TWCR = _BV(TWEN) | _BV(TWEA); // reinitialize TWI 
 }
 
-void I2C::begin()
+uint8_t receiveByte(uint8_t ack)
+{
+  unsigned long startingTime = millis();
+  if(ack)
+  {
+    TWCR = (1<<TWINT) | (1<<TWEN) | (1<<TWEA);
+
+  }
+  else
+  {
+    TWCR = (1<<TWINT) | (1<<TWEN);
+  }
+  while (!(TWCR & (1<<TWINT)))
+  {
+    if(!timeOutDelay){continue;}
+    if((millis() - startingTime) >= timeOutDelay)
+    {
+      lockUp();
+      return 1;
+    }
+  }
+  if (TWI_STATUS == LOST_ARBTRTN)
+  {
+    uint8_t bufferedStatus = TWI_STATUS;
+    lockUp();
+    return bufferedStatus;
+  }
+  return(TWI_STATUS); 
+}
+
+uint8_t readBytes(uint8_t numberBytes, uint8_t *dataBuffer)
+{
+	for(uint8_t i = 0; i < numberBytes; i++)
+	{
+	    if(i == nack)
+	    {
+	      uint8_t returnStatus = receiveByte(0);
+	      if (returnStatus == 1) return 6;
+	      if (returnStatus != MR_DATA_NACK) return returnStatus;
+	    }
+	    else
+	    {
+	      uint8_t returnStatus = receiveByte(1);
+	      if (returnStatus == 1) return 6;
+	      if (returnStatus != MR_DATA_ACK) return returnStatus;
+	    }
+	    dataBuffer[i] = TWDR;
+	    bytesAvailable = i+1;
+	    totalBytes = i+1;
+	}
+	return 0;
+}
+
+uint8_t start()
+{
+  unsigned long startingTime = millis();
+  TWCR = (1<<TWINT)|(1<<TWSTA)|(1<<TWEN);
+  while (!(TWCR & (1<<TWINT)))
+  {
+    if(!timeOutDelay){continue;}
+    if((millis() - startingTime) >= timeOutDelay)
+    {
+      lockUp();
+      return 1;
+    }
+       
+  }
+  if ((TWI_STATUS == START) || (TWI_STATUS == REPEATED_START))
+  {
+    return 0;
+  }
+  if (TWI_STATUS == LOST_ARBTRTN)
+  {
+    uint8_t bufferedStatus = TWI_STATUS;
+    lockUp();
+    return bufferedStatus;
+  }
+  return TWI_STATUS;
+}
+
+uint8_t stop()
+{
+  unsigned long startingTime = millis();
+  TWCR = (1<<TWINT)|(1<<TWEN)| (1<<TWSTO);
+  while ((TWCR & (1<<TWSTO)))
+  {
+    if(!timeOutDelay){continue;}
+    if((millis() - startingTime) >= timeOutDelay)
+    {
+      lockUp();
+      return 1;
+    }
+       
+  }
+  return(0);
+}    
+
+uint8_t sendAddress(uint8_t i2cAddress)
+{
+  TWDR = i2cAddress;
+  unsigned long startingTime = millis();
+  TWCR = (1<<TWINT) | (1<<TWEN);
+  while (!(TWCR & (1<<TWINT)))
+  {
+    if(!timeOutDelay){continue;}
+    if((millis() - startingTime) >= timeOutDelay)
+    {
+      lockUp();
+      return 1;
+    }
+       
+  }
+  if ((TWI_STATUS == MT_SLA_ACK) || (TWI_STATUS == MR_SLA_ACK))
+  {
+    return 0;
+  }
+  uint8_t bufferedStatus = TWI_STATUS;
+  if ((TWI_STATUS == MT_SLA_NACK) || (TWI_STATUS == MR_SLA_NACK))
+  {
+    stop();
+    return bufferedStatus;
+  }
+  else
+  {
+    lockUp();
+    return bufferedStatus;
+  } 
+}
+
+uint8_t sendByte(uint8_t i2cData)
+{
+  TWDR = i2cData;
+  unsigned long startingTime = millis();
+  TWCR = (1<<TWINT) | (1<<TWEN);
+  while (!(TWCR & (1<<TWINT)))
+  {
+    if(!timeOutDelay){continue;}
+    if((millis() - startingTime) >= timeOutDelay)
+    {
+      lockUp();
+      return 1;
+    }
+       
+  }
+  if (TWI_STATUS == MT_DATA_ACK)
+  {
+    return 0;
+  }
+  uint8_t bufferedStatus = TWI_STATUS;
+  if (TWI_STATUS == MT_DATA_NACK)
+  {
+    stop();
+    return bufferedStatus;
+  }
+  else
+  {
+    lockUp();
+    return bufferedStatus;
+  } 
+}
+
+} // end unnamed namespace
+
+namespace I2C {
+
+void begin()
 {
   pullup(0);
-  // initialize twi prescaler and bit rate
+  // initialize TWI prescaler and bit rate
   cbi(TWSR, TWPS0);
   cbi(TWSR, TWPS1);
   TWBR = ((F_CPU / 100000) - 16) / 2;
-  // enable twi module and acks
+  // enable TWI module and acks
   TWCR = _BV(TWEN) | _BV(TWEA); 
 }
 
-void I2C::end()
+void end()
 {
   TWCR = 0;
 }
 
-void I2C::timeOut(uint16_t _timeOut)
+void timeOut(uint16_t _timeOut)
 {
   timeOutDelay = _timeOut;
 }
 
-void I2C::setSpeed(uint8_t _fast)
+void setSpeed(uint8_t _fast)
 {
   if(!_fast)
   {
@@ -116,18 +285,18 @@ void I2C::setSpeed(uint8_t _fast)
   }
 }
   
-void I2C::pullup(uint8_t activate)
+void pullup(uint8_t activate)
 {
   if(activate)
   {
     #if defined(__AVR_ATmega168__) || defined(__AVR_ATmega8__) || defined(__AVR_ATmega328P__)
-      // activate internal pull-ups for twi
-      // as per note from atmega8 manual pg167
+      // activate internal pull-ups for TWI
+      // as per note from ATmega8 manual pg167
       sbi(PORTC, 4);
       sbi(PORTC, 5);
     #else
-      // activate internal pull-ups for twi
-      // as per note from atmega128 manual pg204
+      // activate internal pull-ups for TWI
+      // as per note from ATmega128 manual pg204
       sbi(PORTD, 0);
       sbi(PORTD, 1);
     #endif
@@ -136,19 +305,19 @@ void I2C::pullup(uint8_t activate)
   {
     #if defined(__AVR_ATmega168__) || defined(__AVR_ATmega8__) || defined(__AVR_ATmega328P__)
       // deactivate internal pull-ups for twi
-      // as per note from atmega8 manual pg167
+      // as per note from ATmega8 manual pg167
       cbi(PORTC, 4);
       cbi(PORTC, 5);
     #else
       // deactivate internal pull-ups for twi
-      // as per note from atmega128 manual pg204
+      // as per note from ATmega128 manual pg204
       cbi(PORTD, 0);
       cbi(PORTD, 1);
     #endif
   }
 }
 
-void I2C::scan()
+void scan()
 {
   uint16_t tempTime = timeOutDelay;
   timeOut(80);
@@ -157,8 +326,7 @@ void I2C::scan()
   //Serial.println();
   for(uint8_t s = 0; s <= 0x7F; s++)
   {
-    returnStatus = 0;
-    returnStatus = start();
+    uint8_t returnStatus = start();
     if(!returnStatus)
     { 
       returnStatus = sendAddress(SLA_W(s));
@@ -188,12 +356,12 @@ void I2C::scan()
 }
 
 
-uint8_t I2C::available()
+uint8_t available()
 {
   return bytesAvailable;
 }
 
-uint8_t I2C::receive()
+uint8_t receive()
 {
   bufferIndex = totalBytes - bytesAvailable;
   if (!bytesAvailable)
@@ -228,7 +396,7 @@ uint8_t I2C::receive()
 
 /////////////////////////////////////////////////////
 
-uint8_t I2C::write(uint8_t address, uint8_t registerAddress)
+uint8_t write(uint8_t address, uint8_t registerAddress)
 {
   CHECKED(start(), 0, 0);
   CHECKED(sendAddress(SLA_W(address)), 1, 2);
@@ -237,12 +405,12 @@ uint8_t I2C::write(uint8_t address, uint8_t registerAddress)
   return 0;
 }
 
-uint8_t I2C::write(int address, int registerAddress)
+uint8_t write(int address, int registerAddress)
 {
   return write((uint8_t) address, (uint8_t) registerAddress);
 }
 
-uint8_t I2C::write(uint8_t address, uint8_t registerAddress, uint8_t data)
+uint8_t write(uint8_t address, uint8_t registerAddress, uint8_t data)
 {
   CHECKED(start(), 0, 0);
   CHECKED(sendAddress(SLA_W(address)), 1, 2);
@@ -252,21 +420,19 @@ uint8_t I2C::write(uint8_t address, uint8_t registerAddress, uint8_t data)
   return 0;
 }
 
-uint8_t I2C::write(int address, int registerAddress, int data)
+uint8_t write(int address, int registerAddress, int data)
 {
   return write((uint8_t) address, (uint8_t) registerAddress, (uint8_t) data);
 }
 
-uint8_t I2C::write(uint8_t address, uint8_t registerAddress, char *data)
+uint8_t write(uint8_t address, uint8_t registerAddress, char *data)
 {
   uint8_t bufferLength = strlen(data);
-  returnStatus = write(address, registerAddress, (uint8_t*)data, bufferLength);
+  uint8_t returnStatus = write(address, registerAddress, (uint8_t*)data, bufferLength);
   return returnStatus;
 }
 
-
-
-uint8_t I2C::write(uint8_t address, uint8_t registerAddress, uint8_t *data, uint8_t numberBytes)
+uint8_t write(uint8_t address, uint8_t registerAddress, uint8_t *data, uint8_t numberBytes)
 {
   CHECKED(start(), 0, 0);
   CHECKED(sendAddress(SLA_W(address)), 1, 2);
@@ -281,7 +447,7 @@ uint8_t I2C::write(uint8_t address, uint8_t registerAddress, uint8_t *data, uint
   return 0;
 }
 
-uint8_t I2C::writeBytes(uint8_t address, uint8_t registerAddress, uint8_t numBytes, ...) {
+uint8_t writeBytes(uint8_t address, uint8_t registerAddress, uint8_t numBytes, ...) {
 	CHECKED(start(), 0, 0);
 	CHECKED(sendAddress(SLA_W(address)), 1, 2);
 	CHECKED(sendByte(registerAddress), 1, 3);
@@ -297,12 +463,12 @@ uint8_t I2C::writeBytes(uint8_t address, uint8_t registerAddress, uint8_t numByt
 	return 0;
 }
 
-uint8_t I2C::read(int address, int numberBytes)
+uint8_t read(int address, int numberBytes)
 {
   return(read((uint8_t) address, (uint8_t) numberBytes));
 }
 
-uint8_t I2C::read(uint8_t address, uint8_t numberBytes)
+uint8_t read(uint8_t address, uint8_t numberBytes)
 {
   bytesAvailable = 0;
   bufferIndex = 0;
@@ -316,12 +482,12 @@ uint8_t I2C::read(uint8_t address, uint8_t numberBytes)
   return 0;
 }
 
-uint8_t I2C::read(int address, int registerAddress, int numberBytes)
+uint8_t read(int address, int registerAddress, int numberBytes)
 {
   return read((uint8_t) address, (uint8_t) registerAddress, (uint8_t) numberBytes);
 }
 
-uint8_t I2C::read(uint8_t address, uint8_t registerAddress, uint8_t numberBytes)
+uint8_t read(uint8_t address, uint8_t registerAddress, uint8_t numberBytes)
 {
   bytesAvailable = 0;
   bufferIndex = 0;
@@ -338,7 +504,7 @@ uint8_t I2C::read(uint8_t address, uint8_t registerAddress, uint8_t numberBytes)
   return 0;
 }
 
-uint8_t I2C::read(uint8_t address, uint8_t numberBytes, uint8_t *dataBuffer)
+uint8_t read(uint8_t address, uint8_t numberBytes, uint8_t *dataBuffer)
 {
   bytesAvailable = 0;
   bufferIndex = 0;
@@ -352,7 +518,7 @@ uint8_t I2C::read(uint8_t address, uint8_t numberBytes, uint8_t *dataBuffer)
   return 0;
 }
 
-uint8_t I2C::read(uint8_t address, uint8_t registerAddress, uint8_t numberBytes, uint8_t *dataBuffer)
+uint8_t read(uint8_t address, uint8_t registerAddress, uint8_t numberBytes, uint8_t *dataBuffer)
 {
   bytesAvailable = 0;
   bufferIndex = 0;
@@ -369,174 +535,4 @@ uint8_t I2C::read(uint8_t address, uint8_t registerAddress, uint8_t numberBytes,
   return 0;
 }
 
-
-/////////////// Private Methods ////////////////////////////////////////
-
-uint8_t I2C::readBytes(uint8_t numberBytes, uint8_t *dataBuffer)
-{
-	for(uint8_t i = 0; i < numberBytes; i++)
-	{
-	    if(i == nack)
-	    {
-	      returnStatus = receiveByte(0);
-	      if (returnStatus == 1) return 6;
-	      if (returnStatus != MR_DATA_NACK) return returnStatus;
-	    }
-	    else
-	    {
-	      returnStatus = receiveByte(1);
-	      if (returnStatus == 1) return 6;
-	      if (returnStatus != MR_DATA_ACK) return returnStatus;
-	    }
-	    dataBuffer[i] = TWDR;
-	    bytesAvailable = i+1;
-	    totalBytes = i+1;
-	}
-	return 0;
-}
-
-uint8_t I2C::start()
-{
-  unsigned long startingTime = millis();
-  TWCR = (1<<TWINT)|(1<<TWSTA)|(1<<TWEN);
-  while (!(TWCR & (1<<TWINT)))
-  {
-    if(!timeOutDelay){continue;}
-    if((millis() - startingTime) >= timeOutDelay)
-    {
-      lockUp();
-      return 1;
-    }
-       
-  }
-  if ((TWI_STATUS == START) || (TWI_STATUS == REPEATED_START))
-  {
-    return 0;
-  }
-  if (TWI_STATUS == LOST_ARBTRTN)
-  {
-    uint8_t bufferedStatus = TWI_STATUS;
-    lockUp();
-    return bufferedStatus;
-  }
-  return TWI_STATUS;
-}
-
-uint8_t I2C::sendAddress(uint8_t i2cAddress)
-{
-  TWDR = i2cAddress;
-  unsigned long startingTime = millis();
-  TWCR = (1<<TWINT) | (1<<TWEN);
-  while (!(TWCR & (1<<TWINT)))
-  {
-    if(!timeOutDelay){continue;}
-    if((millis() - startingTime) >= timeOutDelay)
-    {
-      lockUp();
-      return 1;
-    }
-       
-  }
-  if ((TWI_STATUS == MT_SLA_ACK) || (TWI_STATUS == MR_SLA_ACK))
-  {
-    return 0;
-  }
-  uint8_t bufferedStatus = TWI_STATUS;
-  if ((TWI_STATUS == MT_SLA_NACK) || (TWI_STATUS == MR_SLA_NACK))
-  {
-    stop();
-    return bufferedStatus;
-  }
-  else
-  {
-    lockUp();
-    return bufferedStatus;
-  } 
-}
-
-uint8_t I2C::sendByte(uint8_t i2cData)
-{
-  TWDR = i2cData;
-  unsigned long startingTime = millis();
-  TWCR = (1<<TWINT) | (1<<TWEN);
-  while (!(TWCR & (1<<TWINT)))
-  {
-    if(!timeOutDelay){continue;}
-    if((millis() - startingTime) >= timeOutDelay)
-    {
-      lockUp();
-      return 1;
-    }
-       
-  }
-  if (TWI_STATUS == MT_DATA_ACK)
-  {
-    return 0;
-  }
-  uint8_t bufferedStatus = TWI_STATUS;
-  if (TWI_STATUS == MT_DATA_NACK)
-  {
-    stop();
-    return bufferedStatus;
-  }
-  else
-  {
-    lockUp();
-    return bufferedStatus;
-  } 
-}
-
-uint8_t I2C::receiveByte(uint8_t ack)
-{
-  unsigned long startingTime = millis();
-  if(ack)
-  {
-    TWCR = (1<<TWINT) | (1<<TWEN) | (1<<TWEA);
-
-  }
-  else
-  {
-    TWCR = (1<<TWINT) | (1<<TWEN);
-  }
-  while (!(TWCR & (1<<TWINT)))
-  {
-    if(!timeOutDelay){continue;}
-    if((millis() - startingTime) >= timeOutDelay)
-    {
-      lockUp();
-      return 1;
-    }
-  }
-  if (TWI_STATUS == LOST_ARBTRTN)
-  {
-    uint8_t bufferedStatus = TWI_STATUS;
-    lockUp();
-    return bufferedStatus;
-  }
-  return(TWI_STATUS); 
-}
-
-uint8_t I2C::stop()
-{
-  unsigned long startingTime = millis();
-  TWCR = (1<<TWINT)|(1<<TWEN)| (1<<TWSTO);
-  while ((TWCR & (1<<TWSTO)))
-  {
-    if(!timeOutDelay){continue;}
-    if((millis() - startingTime) >= timeOutDelay)
-    {
-      lockUp();
-      return 1;
-    }
-       
-  }
-  return(0);
-}
-
-void I2C::lockUp()
-{
-  TWCR = 0; //releases SDA and SCL lines to high impedance
-  TWCR = _BV(TWEN) | _BV(TWEA); //reinitialize TWI 
-}
-
-I2C I2c = I2C();
+} // end namespace I2C

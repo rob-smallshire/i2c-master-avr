@@ -82,10 +82,9 @@
 
 
 
-class I2C
+namespace I2C
 {
-  public:
-    I2C();
+    //I2C();
     void begin();
     void end();
     void timeOut(uint16_t);
@@ -108,26 +107,8 @@ class I2C
     uint8_t read(int, int, int);
     uint8_t read(uint8_t, uint8_t, uint8_t*);
     uint8_t read(uint8_t, uint8_t, uint8_t, uint8_t*);
+}
 
-
-  private:
-    uint8_t readBytes(uint8_t numberBytes, uint8_t *dataBuffer);
-    uint8_t start();
-    uint8_t sendAddress(uint8_t);
-    uint8_t sendByte(uint8_t);
-    uint8_t receiveByte(uint8_t);
-    uint8_t stop();
-    void lockUp();
-    uint8_t returnStatus;
-    uint8_t nack;
-    uint8_t data[MAX_BUFFER_SIZE];
-    static uint8_t bytesAvailable;
-    static uint8_t bufferIndex;
-    static uint8_t totalBytes;
-    static uint16_t timeOutDelay;
-
-};
-
-extern I2C I2c;
+//extern I2C I2c;
 
 #endif
