@@ -139,12 +139,8 @@ include_directories(${I2C-MASTER_SOURCE_DIR}/elapsed)
 # building library and application in their subdirectories
 ##########################################################################
 add_subdirectory(elapsed)
-#add_subdirectory(app)
-
-add_avr_executable(
-    i2c-master
-    i2c.cpp
-)
+add_subdirectory(i2c)
+add_subdirectory(scanner)
 
 # find_library(M_LIB m)
 # message(STATUS "avr-libm: ${M_LIB}")
@@ -153,7 +149,6 @@ add_avr_executable(
 #message(STATUS "avr-libc: ${C_LIB}")
 
 #avr_target_link_libraries(avrexp ${C_LIB})
-avr_target_link_libraries(i2c-master elapsedlib)
 
 ##########################################################################
 # testing functions w/o source files - gets FATAL_ERROR

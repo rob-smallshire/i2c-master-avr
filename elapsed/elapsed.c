@@ -18,7 +18,6 @@
 #include <util/atomic.h>
  
 volatile unsigned long timer1_millis;
-long milliseconds_since;
  
 ISR (TIMER1_COMPA_vect)
 {
@@ -51,29 +50,4 @@ void init_millis(void)
     TIMSK1 |= (1 << OCIE1A);
 }
 
-void flash_led ()
-{
-    unsigned long milliseconds_current = millis();
 
-    if (milliseconds_current - milliseconds_since > 1000) {
-        // LED connected to PB7
-        PORTB ^= (1 << PB7);
-        milliseconds_since = milliseconds_current;
-    }
-}
-
-int main(void)
-{
-    init_millis();
-
-    // Now enable global interrupts
-    sei();
-
-    // PC0/Analog 0 to Output
-    DDRB |= (1 << PB7);
- 
-    while (1)
-    {
-        flash_led();
-    }
-}

@@ -10,8 +10,8 @@
 ##########################################################################
 
 add_avr_library(
-   elapsed-lib
-   elapsed.c 
-   elapsed.h
+   i2c-lib
+   i2c.cpp 
+   i2c.h
 )
 
