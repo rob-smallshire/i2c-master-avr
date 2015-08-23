@@ -128,12 +128,12 @@ add_definitions("-funsigned-char")
 add_definitions("-funsigned-bitfields")
 add_definitions("-ffunction-sections")
 add_definitions("-c")
-#add_definitions("-std=gnu99")
 
 ##########################################################################
 # include search paths
 ##########################################################################
 include_directories(${I2C-MASTER_SOURCE_DIR}/elapsed)
+include_directories(${I2C-MASTER_SOURCE_DIR}/i2c)
 
 ##########################################################################
 # building library and application in their subdirectories

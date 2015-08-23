@@ -11,7 +11,9 @@
 
 add_avr_executable(
    i2c-scanner
-   main.c
+   uart.c
+   stream.c
+   main.cpp
 )
 
 # find_library(M_LIB m)

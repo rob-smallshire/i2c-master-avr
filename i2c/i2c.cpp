@@ -58,7 +58,10 @@
 
 #include <avr/io.h>
 
+extern "C" {
 #include "elapsed.h"
+}
+
 #include "i2c.h"
 
 #define START           0x08
