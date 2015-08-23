@@ -41,7 +41,7 @@ include(generic-gcc-avr.cmake)
 ##########################################################################
 # name your project
 ##########################################################################
-project(i2c-master)
+project(I2C-MASTER)
 
 ##########################################################################
 # status messages
@@ -133,18 +133,17 @@ add_definitions("-c")
 ##########################################################################
 # include search paths
 ##########################################################################
-#include_directories(${AVR-EXAMPLE_SOURCE_DIR}/mylib)
+include_directories(${I2C-MASTER_SOURCE_DIR}/elapsed)
 
 ##########################################################################
 # building library and application in their subdirectories
 ##########################################################################
-#add_subdirectory(mylib)
+add_subdirectory(elapsed)
 #add_subdirectory(app)
 
 add_avr_executable(
     i2c-master
     i2c.cpp
-    elapsed.c
 )
 
 # find_library(M_LIB m)
@@ -154,6 +153,7 @@ add_avr_executable(
 #message(STATUS "avr-libc: ${C_LIB}")
 
 #avr_target_link_libraries(avrexp ${C_LIB})
+avr_target_link_libraries(i2c-master elapsedlib)
 
 ##########################################################################
 # testing functions w/o source files - gets FATAL_ERROR
