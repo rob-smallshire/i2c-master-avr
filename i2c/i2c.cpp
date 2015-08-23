@@ -61,6 +61,25 @@
 #include "elapsed.h"
 #include "i2c.h"
 
+#define START           0x08
+#define REPEATED_START  0x10
+#define MT_SLA_ACK	0x18
+#define MT_SLA_NACK	0x20
+#define MT_DATA_ACK     0x28
+#define MT_DATA_NACK    0x30
+#define MR_SLA_ACK	0x40
+#define MR_SLA_NACK	0x48
+#define MR_DATA_ACK     0x50
+#define MR_DATA_NACK    0x58
+#define LOST_ARBTRTN    0x38
+#define TWI_STATUS      (TWSR & 0xF8)
+#define SLA_W(address)  (address << 1)
+#define SLA_R(address)  ((address << 1) + 0x01)
+#define cbi(sfr, bit)   (_SFR_BYTE(sfr) &= ~_BV(bit))
+#define sbi(sfr, bit)   (_SFR_BYTE(sfr) |= _BV(bit))
+
+#define MAX_BUFFER_SIZE 32
+
 
 #define CHECKED(expr, original_status, translated_status) {          \
     	uint8_t status = expr;                                       \
@@ -317,44 +336,42 @@ void pullup(uint8_t activate)
   }
 }
 
-void scan()
+/**
+ *  Scan for a device at an address.
+ *
+ *  Return values:
+ *    -2 : Bus error
+ *    -1 : Address out of range
+ *     0 : No device at address
+ *     1 : Device found at address
+ */
+int scan(uint8_t address)
 {
-  uint16_t tempTime = timeOutDelay;
-  timeOut(80);
-  uint8_t totalDevicesFound = 0;
-  //Serial.println("Scanning for devices...please wait");
-  //Serial.println();
-  for(uint8_t s = 0; s <= 0x7F; s++)
-  {
-    uint8_t returnStatus = start();
-    if(!returnStatus)
-    { 
-      returnStatus = sendAddress(SLA_W(s));
-    }
-    if(returnStatus)
+    timeOut(80);
+    if (address > 0x7f)
     {
-      if(returnStatus == 1)
-      {
-      //Serial.println("There is a problem with the bus, could not complete scan");
-        timeOutDelay = tempTime;
-        return;
-      }
+        return -1;
+    }
+    uint8_t returnStatus = start();
+    if (!returnStatus)
+    { 
+      returnStatus = sendAddress(SLA_W(address));
+    }
+    if (returnStatus)
+    {
+        if(returnStatus == 1)
+        {
+             return -2;
+        }
     }
     else
     {
-      //Serial.print("Found device at address - ");
-      //Serial.print(" 0x");
-      //Serial.println(s,HEX);
-      totalDevicesFound++;
+        stop();
+ 	return 1;
     }
     stop();
-  }
-  if(!totalDevicesFound){
-      //Serial.println("No devices found");
-  }
-  timeOutDelay = tempTime;
+    return 0;
 }
-
 
 uint8_t available()
 {
